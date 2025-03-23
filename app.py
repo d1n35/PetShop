@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
+import datetime
 
 # Banco de dados e suas tabelas
 conn = sqlite3.connect('petshop.db')
@@ -104,26 +105,26 @@ def cadastro_pets():
 def administrar_pacotes():
     def adicionar_pacote():
         id = entry_id.get()
-        dataInicio = entry_dataInicio.get()
-        dataFim = entry_dataFim.get()
-        pago = entry_pago()
-        if id and pago and dataInicio and dataFim and pago:
-            cursor.execute('INSERT INTO pacotes (id_pet, dataInicio, dataFim, pago) VALUES (?, ?, ?, ?)', (id, dataInicio, dataFim, pago))
+        dataInicioNF = entry_dataInicioNF.get()
+        dataInicio = datetime.datetime.strptime(dataInicioNF, '%d/%m/%Y').strftime('%Y-%m-%d')
+        dataFimNF = entry_dataFimNF.get()
+        dataFim = datetime.datetime.strptime(dataFimNF, '%d/%m/%Y').strftime('%Y-%m-%d')
+        if id and dataInicio and dataFim:
+            cursor.execute('INSERT INTO pacotes (id_pet, dataInicio, dataFim) VALUES (?, ?, ?)', (id, dataInicio, dataFim))
             conn.commit()
             messagebox.showinfo('Sucesso', 'Pacote adicionado!')
             entry_id.delete(0, tk.END)
-            entry_dataInicio(0, tk.END)
-            entry_dataFim.delete(0, tk.END)
-            entry_pago.delete(0, tk.END)
+            entry_dataInicioNF(0, tk.END)
+            entry_dataFimNF.delete(0, tk.END)
             listar_pacotes()
         else:
             messagebox.showwarning('Atenção', 'Preencha todos os campos!')
 
     def listar_pacotes():
         listbox_pacotes.delete(0, tk.END)
-        cursor.execute('SELECT id_pet, dataInicio, dataFim, pago FROM pacotes')
+        cursor.execute('SELECT id_pet, dataInicio, dataFim FROM pacotes')
         for row in cursor.fetchall():
-            listbox_pacotes.insert(tk.END, f'ID: {row[0]} | Data de Início: {row[1]} | Data do Fim: {row[2]} | Pago: {row[3]}')
+            listbox_pacotes.insert(tk.END, f'ID: {row[0]} | Data de Início: {row[1]} | Data do Fim: {row[2]}')
 
     def deletar_pacote():
         selecao = listbox_pacotes.curselection()
@@ -147,18 +148,12 @@ def administrar_pacotes():
     entry_id.grid(row=0, column=1)
 
     tk.Label(root, text='Data do Início:').grid(row=0, column=2)
-    entry_dataInicio = tk.Entry(root)
-    entry_dataInicio.grid(row=0, column=3)
+    entry_dataInicioNF = tk.Entry(root)
+    entry_dataInicioNF.grid(row=0, column=3)
 
     tk.Label(root, text='Fim do Pacote:').grid(row=0, column=4)
-    entry_dataFim = tk.Entry(root)
-    entry_dataFim.grid(row=0, column=5)
-
-    tk.Label(root, text='Pago:').grid(row=1, column=0)
-    entry_pago = tk.Radiobutton(root, text='Sim')
-    entry_pago.grid(row=1, column=2)
-    entry_pago = tk.Radiobutton(root, text='Não')
-    entry_pago.grid(row=1, column=1)
+    entry_dataFimNF = tk.Entry(root)
+    entry_dataFimNF.grid(row=0, column=5)
 
     btn_adicionar = tk.Button(root, text='Adicionar', command=adicionar_pacote)
     btn_adicionar.grid(row=2, column=3, columnspan=2)

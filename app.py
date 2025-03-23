@@ -114,7 +114,7 @@ def administrar_pacotes():
             conn.commit()
             messagebox.showinfo('Sucesso', 'Pacote adicionado!')
             entry_id.delete(0, tk.END)
-            entry_dataInicioNF(0, tk.END)
+            entry_dataInicioNF.delete(0, tk.END)
             entry_dataFimNF.delete(0, tk.END)
             listar_pacotes()
         else:

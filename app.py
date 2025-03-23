@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkcalendar import DateEntry
 import sqlite3
 import datetime
 
@@ -27,7 +28,7 @@ conn.commit()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS agendamentos (
         id_pet INTEGER NOT NULL,
-        horario DATETIME NOT NULL
+        data DATETIME NOT NULL
     )
 ''')
 conn.commit()
@@ -168,6 +169,69 @@ def administrar_pacotes():
 
     root.mainloop()
 
+def marcar_horarios():
+    def adicionar_horario():
+        id = entry_id.get()
+        hora = spin_hora.get()
+        minuto = spin_minuto.get()
+        if id and hora and minuto:
+            hora_formatada = f"{int(hora):02}:{int(minuto):02}:00"
+            cursor.execute('INSERT INTO agendamentos (id_pet, data) VALUES (?, ?)', (id, hora_formatada))
+            conn.commit()
+            messagebox.showinfo('Sucesso', 'Horário Marcado!')
+            entry_id.delete(0, tk.END)
+            listar_horarios()
+        else:
+            messagebox.showwarning('Atenção', 'Preencha todos os campos!')
+
+    def listar_horarios():
+        listbox_horarios.delete(0, tk.END)
+        cursor.execute('SELECT id_pet, data FROM agendamentos')
+        for row in cursor.fetchall():
+            listbox_horarios.insert(tk.END, f'ID: {row[0]} | Data de Início: {row[1]} | Data do Fim: {row[2]}')
+
+    def deletar_horario():
+        selecao = listbox_horarios.curselection()
+        if selecao:
+            item = listbox_horarios.get(selecao)
+            id_pet = int(item.split('|')[0].split(':')[1].strip())
+            cursor.execute('DELETE FROM agendamentos WHERE id = ?', (id_pet,))
+            conn.commit()
+            messagebox.showinfo('Sucesso', 'Horario Desmarcado!')
+            listar_horarios()
+        else:
+            messagebox.showwarning('Atenção', 'Selecione um pacote para deletar.')
+            
+    root = tk.Toplevel()
+    root.title('Agendamentos')
+    
+    tk.Label(root, text='ID:').grid(row=0, column=0)
+    entry_id = tk.Entry(root)
+    entry_id.grid(row=0, column=1)
+    
+    tk.Label(root, text='Escolha a Data:').grid(row=2, column=0)
+    calendario = DateEntry(root, date_pattern='dd/mm/yyyy')
+    calendario.grid(row=1, column=0)
+
+    tk.Label(root, text='Hora:').grid(row=3, column=0)
+    frame_hora = tk.Frame(root)
+    frame_hora.grid(row=1, column=1)
+    
+    spin_hora = tk.Spinbox(frame_hora, from_=0, to=23, width=5, format='%02.0f')
+    spin_hora.pack(side=tk.LEFT)
+    tk.Label(frame_hora, text=':').pack(side=tk.LEFT)
+    spin_minuto = tk.Spinbox(frame_hora, from_=0, to=59, width=5, format='%02.0f')
+    spin_minuto.pack(side=tk.LEFT)
+    
+    btn_adicionar = tk.Button(root, text='Adicionar', command=adicionar_horario)
+    btn_adicionar.grid(row=2, column=3, columnspan=2)
+
+    listbox_horarios = tk.Listbox(root, width=90)
+    listbox_horarios.grid(row=3, columnspan=6)
+
+    btn_deletar = tk.Button(root, text='Deletar', command=deletar_horario)
+    btn_deletar.grid(row=4, column=3, columnspan=2)
+
 root = tk.Tk()
 root.title('Gerenciamento de PetShop')
 
@@ -177,7 +241,7 @@ btn_adicionar.grid(row=0, column=0, columnspan=2)
 btn_adicionar = tk.Button(root, text='Administar Pacotes', command=administrar_pacotes, width=50)
 btn_adicionar.grid(row=1, column=0, columnspan=2)
 
-btn_adicionar = tk.Button(root, text='Adicionar/Remover Pet', command=cadastro_pets, width=50)
+btn_adicionar = tk.Button(root, text='Horários', command=marcar_horarios, width=50)
 btn_adicionar.grid(row=2, column=0, columnspan=2)
 
 root.mainloop()

@@ -20,6 +20,7 @@ conn.commit()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS pacotes (
         id_pet INTEGER NOT NULL,
+        id_pacote INTEGER PRIMARY KEY AUTOINCREMENT,
         dataInicio DATETIME NOT NULL,
         dataFim DATETIME NOT NULL
     )
@@ -28,6 +29,7 @@ conn.commit()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS agendamentos (
         id_pet INTEGER NOT NULL,
+        id_horario INTEGER PRIMARY KEY AUTOINCREMENT,
         data DATETIME NOT NULL
     )
 ''')
@@ -91,13 +93,13 @@ def cadastro_pets():
     entry_cuidalerg.grid(row=1, column=1, columnspan=5)
 
     btn_adicionar = tk.Button(root, text='Adicionar', command=adicionar_pet)
-    btn_adicionar.grid(row=2, column=3, columnspan=2)
+    btn_adicionar.grid(row=2, columnspan=6)
 
     listbox_pets = tk.Listbox(root, width=90)
     listbox_pets.grid(row=3, columnspan=6)
 
     btn_deletar = tk.Button(root, text='Deletar', command=deletar_pet)
-    btn_deletar.grid(row=4, column=3, columnspan=2)
+    btn_deletar.grid(row=4, columnspan=6)
 
     listar_pets()
 
@@ -106,33 +108,32 @@ def cadastro_pets():
 def administrar_pacotes():
     def adicionar_pacote():
         id = entry_id.get()
-        dataInicioNF = entry_dataInicioNF.get()
-        dataInicio = datetime.datetime.strptime(dataInicioNF, '%d/%m/%Y').strftime('%Y-%m-%d')
-        dataFimNF = entry_dataFimNF.get()
-        dataFim = datetime.datetime.strptime(dataFimNF, '%d/%m/%Y').strftime('%Y-%m-%d')
+        dataInicio = entry_dataInicio.get_date()
+        dataFim = entry_dataFim.get_date()
         if id and dataInicio and dataFim:
-            cursor.execute('INSERT INTO pacotes (id_pet, dataInicio, dataFim) VALUES (?, ?, ?)', (id, dataInicio, dataFim))
+            dataInicioF = dataInicio.strftime('%Y-%m-%d')
+            dataFimF = dataFim.strftime('%Y-%m-%d')
+            cursor.execute('INSERT INTO pacotes (id_pet, dataInicio, dataFim) VALUES (?, ?, ?)', (id, dataInicioF, dataFimF))
             conn.commit()
             messagebox.showinfo('Sucesso', 'Pacote adicionado!')
             entry_id.delete(0, tk.END)
-            entry_dataInicioNF.delete(0, tk.END)
-            entry_dataFimNF.delete(0, tk.END)
             listar_pacotes()
         else:
             messagebox.showwarning('Atenção', 'Preencha todos os campos!')
 
     def listar_pacotes():
         listbox_pacotes.delete(0, tk.END)
-        cursor.execute('SELECT id_pet, dataInicio, dataFim FROM pacotes')
+        cursor.execute('SELECT id_pet, id_pacote, dataInicio, dataFim FROM pacotes')
         for row in cursor.fetchall():
-            listbox_pacotes.insert(tk.END, f'ID: {row[0]} | Data de Início: {row[1]} | Data do Fim: {row[2]}')
+            listbox_pacotes.insert(tk.END, f'ID do pet: {row[0]} | ID do pacote: {row[1]} | Data de Início: {row[2]} | Data do Fim: {row[3]}')
 
     def deletar_pacote():
         selecao = listbox_pacotes.curselection()
         if selecao:
             item = listbox_pacotes.get(selecao)
             id_pet = int(item.split('|')[0].split(':')[1].strip())
-            cursor.execute('DELETE FROM pacotes WHERE id = ?', (id_pet,))
+            id_pacote = int(item.split('|')[1].split(':')[1].strip())
+            cursor.execute('DELETE FROM pacotes WHERE id_pet = ? AND id_pacote = ?', (id_pet, id_pacote))
             conn.commit()
             messagebox.showinfo('Sucesso', 'Pacote deletado!')
             listar_pacotes()
@@ -148,22 +149,22 @@ def administrar_pacotes():
     entry_id = tk.Entry(root)
     entry_id.grid(row=0, column=1)
 
-    tk.Label(root, text='Data do Início:').grid(row=0, column=2)
-    entry_dataInicioNF = tk.Entry(root)
-    entry_dataInicioNF.grid(row=0, column=3)
+    tk.Label(root, text='Escolha a Data Inicial:').grid(row=0, column=2)
+    entry_dataInicio = DateEntry(root, date_pattern='dd/mm/yyyy')
+    entry_dataInicio.grid(row=0, column=3)
 
-    tk.Label(root, text='Fim do Pacote:').grid(row=0, column=4)
-    entry_dataFimNF = tk.Entry(root)
-    entry_dataFimNF.grid(row=0, column=5)
+    tk.Label(root, text='Escolha a Data Final:').grid(row=0, column=2)
+    entry_dataFim = DateEntry(root, date_pattern='dd/mm/yyyy')
+    entry_dataFim.grid(row=0, column=4)
 
     btn_adicionar = tk.Button(root, text='Adicionar', command=adicionar_pacote)
-    btn_adicionar.grid(row=2, column=3, columnspan=2)
+    btn_adicionar.grid(row=2, columnspan=6)
 
     listbox_pacotes = tk.Listbox(root, width=90)
     listbox_pacotes.grid(row=3, columnspan=6)
 
     btn_deletar = tk.Button(root, text='Deletar', command=deletar_pacote)
-    btn_deletar.grid(row=4, column=3, columnspan=2)
+    btn_deletar.grid(row=4, columnspan=6)
 
     listar_pacotes()
 
@@ -172,11 +173,16 @@ def administrar_pacotes():
 def marcar_horarios():
     def adicionar_horario():
         id = entry_id.get()
+        data = calendario.get_date()
         hora = spin_hora.get()
         minuto = spin_minuto.get()
+        listar_horarios()
         if id and hora and minuto:
+            data_formatada = data.strftime('%Y-%m-%d')
             hora_formatada = f"{int(hora):02}:{int(minuto):02}:00"
-            cursor.execute('INSERT INTO agendamentos (id_pet, data) VALUES (?, ?)', (id, hora_formatada))
+            data_hora = f"{data_formatada} {hora_formatada}"
+
+            cursor.execute('INSERT INTO agendamentos (id_pet, data) VALUES (?, ?)', (id, data_hora))
             conn.commit()
             messagebox.showinfo('Sucesso', 'Horário Marcado!')
             entry_id.delete(0, tk.END)
@@ -188,14 +194,15 @@ def marcar_horarios():
         listbox_horarios.delete(0, tk.END)
         cursor.execute('SELECT id_pet, data FROM agendamentos')
         for row in cursor.fetchall():
-            listbox_horarios.insert(tk.END, f'ID: {row[0]} | Data de Início: {row[1]} | Data do Fim: {row[2]}')
+            listbox_horarios.insert(tk.END, f'ID: {row[0]} | Hora agendada: {row[1]}')
 
     def deletar_horario():
         selecao = listbox_horarios.curselection()
         if selecao:
             item = listbox_horarios.get(selecao)
             id_pet = int(item.split('|')[0].split(':')[1].strip())
-            cursor.execute('DELETE FROM agendamentos WHERE id = ?', (id_pet,))
+            id_horario = int(item.split('|')[1].split(':')[1].strip())
+            cursor.execute('DELETE FROM agendamentos WHERE id_pet = ? AND id_horario = ?', (id_pet, id_horario))
             conn.commit()
             messagebox.showinfo('Sucesso', 'Horario Desmarcado!')
             listar_horarios()
@@ -205,17 +212,17 @@ def marcar_horarios():
     root = tk.Toplevel()
     root.title('Agendamentos')
     
-    tk.Label(root, text='ID:').grid(row=0, column=0)
+    tk.Label(root, text='ID do Pet:').grid(row=0, column=0)
     entry_id = tk.Entry(root)
     entry_id.grid(row=0, column=1)
     
-    tk.Label(root, text='Escolha a Data:').grid(row=2, column=0)
+    tk.Label(root, text='Escolha a Data:').grid(row=0, column=2)
     calendario = DateEntry(root, date_pattern='dd/mm/yyyy')
-    calendario.grid(row=1, column=0)
+    calendario.grid(row=0, column=3)
 
-    tk.Label(root, text='Hora:').grid(row=3, column=0)
+    tk.Label(root, text='Hora:').grid(row=0, column=4)
     frame_hora = tk.Frame(root)
-    frame_hora.grid(row=1, column=1)
+    frame_hora.grid(row=0, column=5)
     
     spin_hora = tk.Spinbox(frame_hora, from_=0, to=23, width=5, format='%02.0f')
     spin_hora.pack(side=tk.LEFT)
@@ -224,13 +231,13 @@ def marcar_horarios():
     spin_minuto.pack(side=tk.LEFT)
     
     btn_adicionar = tk.Button(root, text='Adicionar', command=adicionar_horario)
-    btn_adicionar.grid(row=2, column=3, columnspan=2)
+    btn_adicionar.grid(row=2, columnspan=6)
 
     listbox_horarios = tk.Listbox(root, width=90)
     listbox_horarios.grid(row=3, columnspan=6)
 
     btn_deletar = tk.Button(root, text='Deletar', command=deletar_horario)
-    btn_deletar.grid(row=4, column=3, columnspan=2)
+    btn_deletar.grid(row=4, columnspan=6)
 
 root = tk.Tk()
 root.title('Gerenciamento de PetShop')

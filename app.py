@@ -5,15 +5,14 @@ from tkcalendar import DateEntry
 import sqlite3
 import datetime
 
-# Banco de dados e suas tabelas
-conn = sqlite3.connect('banhoetosa.db')
+conn = sqlite3.connect('petshop.db')
 cursor = conn.cursor()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS pets (
         id_pet INTEGER PRIMARY KEY AUTOINCREMENT,
         nome VARCHAR(30) NOT NULL,
         dono VARCHAR(30) NOT NULL,
-        telefone VARCHAR(11) NOT NULL,
+        telefone INTEGER NOT NULL,
         cuidadosAlergias VARCHAR(200)
     )
 ''')
@@ -58,7 +57,7 @@ def cadastro_pets():
         listbox_pets.delete(0, tk.END)
         cursor.execute('SELECT id_pet, nome, dono, telefone, cuidadosAlergias FROM pets')
         for row in cursor.fetchall():
-            listbox_pets.insert(tk.END, f'ID: {row[0]} | Nome: {row[1]} | Telefone: {row[2]} | Cuidados e alergias: {row[3]}')
+            listbox_pets.insert(tk.END, f'ID: {row[0]} | Nome: {row[1]} | Dono: {row[2]} | Dono: {row[3]} | Cuidados e alergias: {row[4]}')
 
     def deletar_pet():
         selecao = listbox_pets.curselection()
@@ -98,16 +97,13 @@ def cadastro_pets():
 
     listbox_pets = tk.Listbox(root, width=90)
     listbox_pets.grid(row=3, columnspan=6)
-    
-    scrollbar = tk.Scrollbar(root)
-    scrollbar.grid(row=3, column=6, sticky="ns")
-    listbox_pets.config(yscrollcommand=scrollbar.set)
-    scrollbar.config(command=listbox_pets.yview)
 
     btn_deletar = tk.Button(root, text='Deletar', command=deletar_pet)
     btn_deletar.grid(row=4, columnspan=6)
 
     listar_pets()
+
+    root.mainloop()
 
 def administrar_pacotes():
     def adicionar_pacote():
@@ -127,23 +123,24 @@ def administrar_pacotes():
 
     def listar_pacotes():
         listbox_pacotes.delete(0, tk.END)
-        cursor.execute('SELECT id_pet, id_pacote, dataInicio, dataFim FROM pacotes')
+        cursor.execute('SELECT id_pet, id_pacote, dataInicio, dataFim FROM pacotes ORDER BY 4')
         for row in cursor.fetchall():
-            listbox_pacotes.insert(tk.END, f'ID do pet: {row[0].strip()[0]} | ID do pacote: {row[1]} | Data de Início: {row[2]} | Data do Fim: {row[3]}')
+            listbox_pacotes.insert(tk.END, f'ID do pet: {row[0]} | ID do pacote: {row[1]} | Data de Início: {row[2]} | Data do Fim: {row[3]}')
 
     def deletar_pacote():
         selecao = listbox_pacotes.curselection()
         if selecao:
-            item = listbox_pacotes.get(selecao)
-            id_pet = int(item.split(':')[1].split()[0])
-            id_pacote = int(item.split('|')[1].split(':')[1].strip())
-            cursor.execute('DELETE FROM pacotes WHERE id_pet = ? AND id_pacote = ?', (id_pet, id_pacote,))
-            conn.commit()
-            messagebox.showinfo('Sucesso', 'Pacote deletado!')
-            listbox_pacotes.delete(0, tk.END)
-            listar_pacotes()
-        else:
-            messagebox.showwarning('Atenção', 'Selecione um pacote para deletar.')
+            try:
+                item = listbox_pacotes.get(selecao)
+                id_pet = int(item.split('|')[0].split(':')[1].strip())
+                id_pacote = int(item.split('|')[2].split(':')[1].strip())
+                cursor.execute(f'DELETE FROM pacotes WHERE id_pet = {id_pet} AND id_pacote = {id_pacote}')
+                print(f'DELETE FROM pacotes WHERE id_pet = {id_pet} AND id_pacote = {id_pacote}')
+                conn.commit()
+                messagebox.showinfo('Sucesso', 'Pacote deletado!')
+                listar_pacotes()
+            except sqlite3.Error as e:
+                messagebox.showwarning('Atenção', 'Selecione um pacote para deletar.')
 
 # Interface gráfica
 
@@ -151,36 +148,32 @@ def administrar_pacotes():
     root.title('Administração de Pacotes')
 
     cursor.execute("SELECT id_pet, nome FROM pets")
-    pets = [(row[0], "|", row[1]) for row in cursor.fetchall()]
-    
+    idpet = [(pid[0],"|",pid[1]) for pid in cursor.fetchall()]
+
     tk.Label(root, text='Pet:').grid(row=0, column=0)
-    escolhePet = tk.StringVar()
-    entry_id = ttk.Combobox(root, textvariable=escolhePet, values=pets)
+    entry_id = ttk.Combobox(root, textvariable=idpet, values=idpet)
     entry_id.grid(row=0, column=1)
-    
+
     tk.Label(root, text='Escolha a Data Inicial:').grid(row=0, column=2)
     entry_dataInicio = DateEntry(root, date_pattern='dd/mm/yyyy')
     entry_dataInicio.grid(row=0, column=3)
 
-    tk.Label(root, text='Escolha a Data Final:').grid(row=0, column=4)
+    tk.Label(root, text='Escolha a Data Final:').grid(row=0, column=2)
     entry_dataFim = DateEntry(root, date_pattern='dd/mm/yyyy')
-    entry_dataFim.grid(row=0, column=5)
+    entry_dataFim.grid(row=0, column=4)
 
     btn_adicionar = tk.Button(root, text='Adicionar', command=adicionar_pacote)
     btn_adicionar.grid(row=2, columnspan=6)
 
     listbox_pacotes = tk.Listbox(root, width=90)
     listbox_pacotes.grid(row=3, columnspan=6)
-    scrollbar = tk.Scrollbar(root)
-    scrollbar.grid(row=3, column=6, sticky="ns")
-
-    listbox_pacotes.config(yscrollcommand=scrollbar.set)
-    scrollbar.config(command=listbox_pacotes.yview)
 
     btn_deletar = tk.Button(root, text='Deletar', command=deletar_pacote)
     btn_deletar.grid(row=4, columnspan=6)
 
     listar_pacotes()
+
+    root.mainloop()
 
 def marcar_horarios():
     def adicionar_horario():
@@ -204,35 +197,28 @@ def marcar_horarios():
 
     def listar_horarios():
         listbox_horarios.delete(0, tk.END)
-        cursor.execute('SELECT id_pet, data FROM agendamentos')
+        cursor.execute('SELECT id_pet, data FROM agendamentos ORDER BY 2')
         for row in cursor.fetchall():
             listbox_horarios.insert(tk.END, f'ID: {row[0]} | Hora agendada: {row[1]}')
 
     def deletar_horario():
         selecao = listbox_horarios.curselection()
-        listar_horarios()
         if selecao:
             item = listbox_horarios.get(selecao)
-            idEpet = str(item.split(':')[1].split()[0].strip())
-            id_pet = int(idEpet.split(", ")[0].strip())
-            idDoHorario = str(item.split('|')[0].split(':')[1].strip())
-            id_horario = int(idDoHorario.split(" ")[0].strip())
-            cursor.execute('DELETE FROM agendamentos WHERE id_pet = ? AND id_horario = ?', (id_pet, id_horario,))
+            id_pet = int(item.split('|')[0].split(':')[1].strip())
+            id_horario = int(item.split('|')[1].split(':')[1].strip())
+            cursor.execute('DELETE FROM agendamentos WHERE id_pet = ? AND id_horario = ?', (id_pet, id_horario))
             conn.commit()
             messagebox.showinfo('Sucesso', 'Horario Desmarcado!')
-            
+            listar_horarios()
         else:
             messagebox.showwarning('Atenção', 'Selecione um pacote para deletar.')
             
     root = tk.Toplevel()
     root.title('Agendamentos')
     
-    cursor.execute("SELECT id_pet, nome FROM pets")
-    pets = [(row[0], row[1]) for row in cursor.fetchall()]
-    
-    tk.Label(root, text='Pet:').grid(row=0, column=0)
-    escolhePet = tk.StringVar()
-    entry_id = ttk.Combobox(root, textvariable=escolhePet, values=pets)
+    tk.Label(root, text='ID do Pet:').grid(row=0, column=0)
+    entry_id = tk.Entry(root)
     entry_id.grid(row=0, column=1)
     
     tk.Label(root, text='Escolha a Data:').grid(row=0, column=2)
@@ -254,11 +240,7 @@ def marcar_horarios():
 
     listbox_horarios = tk.Listbox(root, width=90)
     listbox_horarios.grid(row=3, columnspan=6)
-    scrollbar = tk.Scrollbar(root)
-    scrollbar.grid(row=3, column=6, sticky="ns")
 
-    listbox_horarios.config(yscrollcommand=scrollbar.set)
-    scrollbar.config(command=listbox_horarios.yview)
     btn_deletar = tk.Button(root, text='Deletar', command=deletar_horario)
     btn_deletar.grid(row=4, columnspan=6)
 
